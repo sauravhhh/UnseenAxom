@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#161616">
+<title>UnseenAxom — অসম ভ্ৰমণ মেপ</title>
+<meta name="description" content="Tap the Assam districts you have visited, add your photo, and download your travel map.">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root{ --bg:#fafafa; --card:#fff; --ink:#1a1a1a; --sub:#6b6b6b; --line:#e8e8e8; }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body{ margin:0; font-family:-apple-system,"Segoe UI",Roboto,"Noto Sans Bengali",sans-serif;
+        background:var(--bg); color:var(--ink); }
+  header{ background:#161616; color:#fff; padding:18px 16px 14px; text-align:center; }
+  header h1{ margin:0; font-size:22px; letter-spacing:.5px; }
+  header h1 .ax{ color:#ffb300; }
+  header p{ margin:6px 0 0; font-size:13px; color:#bdbdbd; }
+  #count{ font-size:15px; margin-top:10px; color:#fff; }
+  #count b{ font-size:26px; color:#ffb300; }
+  main{ max-width:760px; margin:0 auto; padding:12px 12px 40px; }
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:14px;
+         padding:12px; margin-bottom:12px; }
+  .card h3{ margin:2px 0 10px; font-size:14px; color:var(--sub); font-weight:600;
+            text-transform:uppercase; letter-spacing:.6px; }
+  #mapwrap{ position:relative; border-radius:10px; overflow:hidden; background:#f1f1f1; }
+  #map{ display:block; width:100%; height:auto; touch-action:manipulation; }
+  #map path{ cursor:pointer; stroke:#fff; stroke-width:1.1; transition:fill .15s; }
+  #zoom{ position:absolute; right:10px; top:10px; display:flex; flex-direction:column; gap:6px; }
+  #zoom button{ width:38px; height:38px; border-radius:50%; border:1px solid var(--line);
+    background:#fff; font-size:20px; line-height:1; cursor:pointer; }
+  #selname{ text-align:center; font-size:14px; color:var(--sub); min-height:22px; margin-top:8px; }
+  #selname b{ color:var(--ink); }
+  .row{ display:flex; gap:8px; flex-wrap:wrap; }
+  .row button, .row label.btn{ flex:1 1 auto; }
+  button, label.btn{ border:1px solid var(--line); background:#fff; color:var(--ink);
+    border-radius:10px; padding:11px 12px; font-size:14px; cursor:pointer; text-align:center; }
+  button.primary{ background:#161616; color:#fff; border-color:#161616; font-weight:700; }
+  button:active, label.btn:active{ transform:scale(.98); }
+  .themes{ display:flex; gap:8px; }
+  .theme{ flex:1; border:2px solid var(--line); border-radius:10px; padding:8px 4px;
+          font-size:12px; cursor:pointer; text-align:center; background:#fff; }
+  .theme.on{ border-color:#161616; }
+  .theme .dot{ width:26px; height:26px; border-radius:50%; margin:0 auto 6px; border:1px solid #ddd; }
+  input[type=text]{ width:100%; border:1px solid var(--line); border-radius:10px;
+    padding:11px 12px; font-size:15px; }
+  #searchres{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  #searchres button{ font-size:13px; padding:8px 10px; }
+  #searchres button.hit{ background:#161616; color:#fff; border-color:#161616; }
+  #photoprev{ width:84px; height:84px; border-radius:50%; object-fit:cover;
+              display:none; border:3px solid #161616; }
+  .flex{ display:flex; gap:12px; align-items:center; }
+  footer{ text-align:center; color:var(--sub); font-size:12px; padding:18px 12px 30px; }
+  footer a{ color:var(--sub); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Unseen<span class="ax">Axom</span></h1>
+  <p>অসম ভ্ৰমণ মেপ &mdash; tap the districts you have visited</p>
+  <div id="count"><b id="cnum">0</b> / 35 districts</div>
+</header>
+
+<main>
+  <div class="card">
+    <h3>Your map</h3>
+    <div id="mapwrap">
+      <svg id="map" viewBox="0 0 1000 520" role="img" aria-label="Map of Assam districts"></svg>
+      <div id="zoom">
+        <button id="zin" aria-label="Zoom in">+</button>
+        <button id="zout" aria-label="Zoom out">&minus;</button>
+        <button id="zreset" aria-label="Reset zoom" style="font-size:15px">&#10226;</button>
+      </div>
+    </div>
+    <div id="selname">Tap a district to mark it visited</div>
+    <div class="row" style="margin-top:8px">
+      <button id="selectall">Select all</button>
+      <button id="clear">Clear</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Find a district</h3>
+    <input type="text" id="search" placeholder="Type a district name&hellip;" autocomplete="off">
+    <div id="searchres"></div>
+  </div>
+
+  <div class="card">
+    <h3>Theme</h3>
+    <div class="themes" id="themes"></div>
+  </div>
+
+  <div class="card">
+    <h3>Your photo &amp; name</h3>
+    <div class="flex">
+      <img id="photoprev" alt="Your photo">
+      <div style="flex:1">
+        <div class="row" style="margin-bottom:8px">
+          <label class="btn" for="photo">Add your photo</label>
+          <input type="file" id="photo" accept="image/*" hidden>
+        </div>
+        <input type="text" id="name" placeholder="Your name (optional)" maxlength="30">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <button class="primary" id="download" style="width:100%; font-size:16px">Download your map</button>
+    <p style="font-size:12px; color:var(--sub); text-align:center; margin:10px 0 0">
+      Saves a shareable image &mdash; your map, count, photo and name.</p>
+  </div>
+</main>
+
+<footer>
+  District boundaries: public LGD data &middot; Made with UnseenAxom<br>
+  <span style="font-size:11px">Tip: install this page to your home screen &mdash; it works offline.</span>
+</footer>
+
+<script>
+const THEMES = {
+  gamosa:     { label:'Gamosa',      dot:'#C62828', bg:'#FFFFFF', accent:'#C62828', muted:'#ECEFF1', text:'#1A1A1A', sub:'#6B6B6B', stroke:'#FFFFFF' },
+  brahmaputra:{ label:'Brahmaputra', dot:'#1565C0', bg:'#F2F7FF', accent:'#1565C0', muted:'#D7E3F4', text:'#0D2137', sub:'#5A7290', stroke:'#FFFFFF' },
+  bihu:       { label:'Bihu',        dot:'#2E7D32', bg:'#F4F9F1', accent:'#2E7D32', muted:'#DCE8D6', text:'#1C3319', sub:'#5F7A5C', stroke:'#FFFFFF' },
+  midnight:   { label:'Midnight',    dot:'#FFB300', bg:'#161616', accent:'#FFB300', muted:'#2E2E2E', text:'#FFFFFF', sub:'#9A9A9A', stroke:'#161616' },
+};
+let themeKey = localStorage.getItem('ua_theme') || 'midnight';
+let visited = new Set(JSON.parse(localStorage.getItem('ua_visited') || '[]'));
+let DATA = [], bounds = null, photoURL = null, vb = { x:0, y:0, w:1000, h:520 };
+const $ = id => document.getElementById(id);
+const svgNS = 'http://www.w3.org/2000/svg';
+
+function project(lon, lat){
+  const kx = Math.cos(bounds.lat0 * Math.PI/180);
+  const s = Math.min(1000/((bounds.mxx-bounds.mnx)*kx), 520/(bounds.mxy-bounds.mny));
+  const ox = (1000-(bounds.mxx-bounds.mnx)*kx*s)/2, oy = (520-(bounds.mxy-bounds.mny)*s)/2;
+  return [ox+(lon-bounds.mnx)*kx*s, oy+(bounds.mxy-lat)*s];
+}
+function pathOf(polys){
+  return polys.map(poly => 'M'+poly.map(([x,y])=>{ const [a,b]=project(x,y); return a.toFixed(1)+','+b.toFixed(1); }).join('L')+'Z').join('');
+}
+function paint(){
+  const T = THEMES[themeKey];
+  document.querySelectorAll('#map path').forEach(p=>{
+    p.setAttribute('fill', visited.has(p.dataset.en) ? T.accent : T.muted);
+    p.style.stroke = T.stroke;
+  });
+  $('mapwrap').style.background = T.bg === '#161616' ? '#1e1e1e' : T.bg;
+  $('cnum').textContent = visited.size;
+  localStorage.setItem('ua_visited', JSON.stringify([...visited]));
+  localStorage.setItem('ua_theme', themeKey);
+}
+function renderThemes(){
+  const box = $('themes'); box.innerHTML = '';
+  for (const k in THEMES){
+    const t = THEMES[k], el = document.createElement('div');
+    el.className = 'theme' + (k===themeKey ? ' on' : '');
+    el.innerHTML = `<div class="dot" style="background:${t.dot}"></div>${t.label}`;
+    el.onclick = ()=>{ themeKey = k; renderThemes(); paint(); };
+    box.appendChild(el);
+  }
+}
+function setVB(){ $('map').setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`); }
+function zoom(f){
+  const cx = vb.x+vb.w/2, cy = vb.y+vb.h/2;
+  let w = Math.min(1000, Math.max(140, vb.w*f)), h = w*0.52;
+  vb = { x: Math.min(1000-w, Math.max(0, cx-w/2)), y: Math.min(520-h, Math.max(0, cy-h/2)), w, h };
+  setVB();
+}
+function toggle(en){
+  visited.has(en) ? visited.delete(en) : visited.add(en);
+  const d = DATA.find(d=>d.en===en);
+  $('selname').innerHTML = `<b>${d.en}</b> &middot; ${d.as} &mdash; ${visited.has(en)?'visited ✓':'unmarked'}`;
+  paint();
+}
+
+async function init(){
+  DATA = (await (await fetch('districts.json')).json()).districts;
+  const xs = DATA.flatMap(d=>d.polys.flatMap(p=>p.map(pt=>pt[0])));
+  const ys = DATA.flatMap(d=>d.polys.flatMap(p=>p.map(pt=>pt[1])));
+  bounds = { mnx:Math.min(...xs), mxx:Math.max(...xs), mny:Math.min(...ys), mxy:Math.max(...ys),
+             lat0:(Math.min(...ys)+Math.max(...ys))/2 };
+  const svg = $('map');
+  DATA.forEach(d=>{
+    const p = document.createElementNS(svgNS,'path');
+    p.setAttribute('d', pathOf(d.polys));
+    p.dataset.en = d.en;
+    p.innerHTML = `<title>${d.en} (${d.as})</title>`;
+    p.addEventListener('click', ()=>toggle(d.en));
+    svg.appendChild(p);
+  });
+  renderThemes(); setVB(); paint();
+
+  $('zin').onclick = ()=>zoom(0.7);
+  $('zout').onclick = ()=>zoom(1.4);
+  $('zreset').onclick = ()=>{ vb = {x:0,y:0,w:1000,h:520}; setVB(); };
+  $('selectall').onclick = ()=>{ DATA.forEach(d=>visited.add(d.en)); $('selname').textContent='All 35 districts selected'; paint(); };
+  $('clear').onclick = ()=>{ visited.clear(); $('selname').textContent='Tap a district to mark it visited'; paint(); };
+
+  const sres = $('searchres');
+  function doSearch(){
+    const q = $('search').value.trim().toLowerCase(); sres.innerHTML = '';
+    if (q.length < 1) return;
+    DATA.filter(d=>d.en.toLowerCase().includes(q)||d.as.includes($('search').value.trim()))
+      .slice(0,12).forEach(d=>{
+        const b = document.createElement('button');
+        b.textContent = (visited.has(d.en)?'✓ ':'') + d.en;
+        if (visited.has(d.en)) b.classList.add('hit');
+        b.onclick = ()=>{ toggle(d.en); doSearch(); };
+        sres.appendChild(b);
+      });
+  }
+  $('search').addEventListener('input', doSearch);
+
+  $('photo').addEventListener('change', e=>{
+    const f = e.target.files[0]; if(!f) return;
+    const r = new FileReader();
+    r.onload = ()=>{ photoURL = r.result; const im=$('photoprev'); im.src=photoURL; im.style.display='block'; };
+    r.readAsDataURL(f);
+  });
+
+  $('download').onclick = downloadCard;
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+
+/* ---------- shareable card ---------- */
+function roundRect(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
+
+function downloadCard(){
+  const T = THEMES[themeKey], W = 1080, H = 1350;
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const c = cv.getContext('2d');
+  c.fillStyle = T.bg; c.fillRect(0,0,W,H);
+
+  c.textAlign = 'center'; c.fillStyle = T.sub;
+  c.font = '600 34px system-ui,sans-serif';
+  c.fillText('U N S E E N   A X O M', W/2, 80);
+  c.fillStyle = T.text; c.font = '700 64px system-ui,sans-serif';
+  c.fillText('মোৰ অসম ভ্ৰমণ', W/2, 160);
+
+  // map
+  const kx = Math.cos(bounds.lat0*Math.PI/180);
+  const mw = 960, mh = 560, mx = 60, my = 230;
+  const s = Math.min(mw/((bounds.mxx-bounds.mnx)*kx), mh/(bounds.mxy-bounds.mny));
+  const ox = mx+(mw-(bounds.mxx-bounds.mnx)*kx*s)/2, oy = my+(mh-(bounds.mxy-bounds.mny)*s)/2;
+  DATA.forEach(d=>{
+    c.beginPath();
+    d.polys.forEach(poly=>{
+      poly.forEach(([x,y],i)=>{
+        const a = ox+(x-bounds.mnx)*kx*s, b = oy+(bounds.mxy-y)*s;
+        i ? c.lineTo(a,b) : c.moveTo(a,b);
+      });
+      c.closePath();
+    });
+    c.fillStyle = visited.has(d.en) ? T.accent : T.muted;
+    c.fill();
+    c.strokeStyle = T.stroke; c.lineWidth = 2; c.stroke();
+  });
+
+  // count
+  const n = visited.size;
+  c.fillStyle = T.accent; c.font = '800 150px system-ui,sans-serif';
+  c.fillText(String(n), W/2, 1010);
+  c.fillStyle = T.text; c.font = '600 40px system-ui,sans-serif';
+  c.fillText(`of 35 districts visited`, W/2, 1070);
+  c.fillStyle = T.sub; c.font = '400 32px system-ui,sans-serif';
+  c.fillText('খন জিলা ভ্ৰমণ কৰিলোঁ', W/2, 1120);
+
+  // photo + name
+  const drawFooter = ()=>{
+    const nm = $('name').value.trim();
+    if (photoURL){
+      const im = new Image();
+      im.onload = ()=>{
+        c.save(); c.beginPath(); c.arc(180, 1230, 62, 0, 7); c.clip();
+        const sc = Math.max(124/im.width, 124/im.height);
+        c.drawImage(im, 180-im.width*sc/2, 1230-im.height*sc/2, im.width*sc, im.height*sc);
+        c.restore();
+        c.strokeStyle = T.accent; c.lineWidth = 5;
+        c.beginPath(); c.arc(180, 1230, 62, 0, 7); c.stroke();
+        if (nm){ c.textAlign='left'; c.fillStyle=T.text; c.font='700 44px system-ui,sans-serif'; c.fillText(nm, 270, 1245); }
+        finish();
+      };
+      im.src = photoURL;
+    } else {
+      if (nm){ c.fillStyle=T.text; c.font='700 44px system-ui,sans-serif'; c.fillText(nm, W/2, 1245); }
+      finish();
+    }
+  };
+  const finish = ()=>{
+    c.textAlign='center'; c.fillStyle=T.sub; c.font='400 24px system-ui,sans-serif';
+    c.fillText('Made with UnseenAxom', W/2, H-36);
+    const a = document.createElement('a');
+    a.download = 'unseen-axom-map.png';
+    a.href = cv.toDataURL('image/png');
+    a.click();
+  };
+  drawFooter();
+}
+
+init();
+</script>
+</body>
+</html>
